@@ -34,18 +34,22 @@ try {
 const PORT = process.env.PORT || 8445;
 
 // Wit.ai parameters
-const WIT_TOKEN = process.env.WIT_TOKEN;
+// const WIT_TOKEN = process.env.WIT_TOKEN;
+const WIT_TOKEN = '2OLQSQ6YUXEYMTTIIOZWY6HCU5P2I2AJ';
 
 // Messenger API parameters
-const FB_PAGE_TOKEN = process.env.FB_PAGE_TOKEN;
+// const FB_PAGE_TOKEN = process.env.FB_PAGE_TOKEN;
+const FB_PAGE_TOKEN = 'EAAWbRYxNjOEBAMxceCzleJyzksZAhTqgbTTnfj9nW3offPDYBJIV9PqQEu53trOVrGYgTDby7xSHX1aOeA4ukrfT1Tf99sYY9q49SDzSgaBZBfmZAR5gEFRItGGaZBBF0exjEqmyy6tvSXGgh2g0PDU3MAJAtHQApjmMk3RIEQZDZD';
 if (!FB_PAGE_TOKEN) { throw new Error('missing FB_PAGE_TOKEN') }
-const FB_APP_SECRET = process.env.FB_APP_SECRET;
+// const FB_APP_SECRET = process.env.FB_APP_SECRET;
+const FB_APP_SECRET = 'c2bf2848adffe996cd6314e64b49ca1c';
 if (!FB_APP_SECRET) { throw new Error('missing FB_APP_SECRET') }
 
 let FB_VERIFY_TOKEN = null;
 crypto.randomBytes(8, (err, buff) => {
   if (err) throw err;
-  FB_VERIFY_TOKEN = buff.toString('hex');
+  // FB_VERIFY_TOKEN = buff.toString('hex');
+  FB_VERIFY_TOKEN = 'b1683709bb35b5zx';
   console.log(`/webhook will accept the Verify Token "${FB_VERIFY_TOKEN}"`);
 });
 
@@ -100,6 +104,19 @@ const findOrCreateSession = (fbid) => {
   return sessionId;
 };
 
+const firstEntityValue = (entities, entity) => {
+  const val = entities && entities[entity] &&
+    Array.isArray(entities[entity]) &&
+    entities[entity].length > 0 &&
+    entities[entity][0].value
+  ;
+  if (!val) {
+    return null;
+  }
+  return typeof val === 'object' ? val.value : val;
+};
+
+
 // Our bot actions
 const actions = {
   send({sessionId}, {text}) {
@@ -126,9 +143,101 @@ const actions = {
       return Promise.resolve()
     }
   },
-  // You should implement your custom actions here
-  // See https://wit.ai/docs/quickstart
+  getForecast({context, entities}) {
+    return new Promise(function(resolve, reject) {
+      var location = firstEntityValue(entities, 'location');
+      if (location) {
+        context.forecast = 'sunny in '  + location; // we should call a weather API here
+        delete context.missingLocation;
+      } else {
+        context.missingLocation = true;
+        delete context.forecast;
+      }
+      return resolve(context);
+    });
+  },
+  merge({context, entities}) {
+    return new Promise(function(resolve, reject) {
+      var category = firstEntityValue(entities, 'category');
+      if(category) {      
+        context.cat = category;
+      }
+       return resolve(context);
+    });
+  },
+  welcomemsg({context, entities}) {
+    return new Promise(function(resolve, reject) {
+      var greetings = firstEntityValue(entities, 'greetings');
+      if(greetings) {      
+        context.welcome = greetings;
+      }
+       return resolve(context);
+    });
+  },
+  howzyou({context, entities}) {
+    return new Promise(function(resolve, reject) {
+      var howzyou = firstEntityValue(entities, 'howzyou');
+      if(howzyou) {      
+        context.howz = howzyou;
+      }
+       return resolve(context);
+    });
+  },
+
+  readingBooks({context, entities}) {
+    return new Promise(function(resolve, reject) {
+      var reading = firstEntityValue(entities, 'reading');
+      if(reading) {      
+        context.readbook = reading;
+      }
+       return resolve(context);
+    });
+  },
+
+  ['fetch-pics'](context) {
+    return new Promise(function(resolve, reject) {
+      var wantedPics = allPics[context.cat || 'default'];
+      context.pics = wantedPics[Math.floor(Math.random() * wantedPics.length)];
+      return resolve(context);
+    });
+  },
+
+  ['what-to-read'](context) {
+    return new Promise(function(resolve, reject) {
+      return resolve(context);
+    });
+  },
 };
+
+
+var allPics = {
+  corgis: [
+    '<img src="http://i.imgur.com/uYyICl0.jpeg">',
+    'http://i.imgur.com/useIJl6.jpeg',
+    'http://i.imgur.com/LD242xr.jpeg',
+    'http://i.imgur.com/Q7vn2vS.jpeg',
+    'http://i.imgur.com/ZTmF9jm.jpeg',
+    'http://i.imgur.com/jJlWH6x.jpeg',
+    'http://i.imgur.com/ZYUakqg.jpeg',
+    'http://i.imgur.com/RxoU9o9.jpeg',
+  ],
+  racoon: [
+    'http://i.imgur.com/zCC3npm.jpeg',
+    'http://i.imgur.com/OvxavBY.jpeg',
+    'http://i.imgur.com/Z6oAGRu.jpeg',
+    'http://i.imgur.com/uAlg8Hl.jpeg',
+    'http://i.imgur.com/q0O0xYm.jpeg',
+    'http://i.imgur.com/BrhxR5a.jpeg',
+    'http://i.imgur.com/05hlAWU.jpeg',
+    'http://i.imgur.com/HAeMnSq.jpeg',
+  ],
+  default: [
+    'http://blog.uprinting.com/wp-content/uploads/2011/09/Cute-Baby-Pictures-29.jpg',
+  ],
+};
+
+
+
 
 // Setting up our bot
 const wit = new Wit({
@@ -253,3 +362,120 @@ function verifyRequestSignature(req, res, buf) {
 
 app.listen(PORT);
 console.log('Listening on :' + PORT + '...');
+
+
+// app.post('/webhook', function (req, res) {
+//   var data = req.body;
+
+//   // Make sure this is a page subscription
+//   if (data.object == 'page') {
+//     // Iterate over each entry
+//     // There may be multiple if batched
+//     data.entry.forEach(function(pageEntry) {
+//       var pageID = pageEntry.id;
+//       var timeOfEvent = pageEntry.time;
+
+//       // Iterate over each messaging event
+//       pageEntry.messaging.forEach(function(messagingEvent) {
+//         if (messagingEvent.optin) {
+//           receivedAuthentication(messagingEvent);
+//         } else if (messagingEvent.message) {
+//           receivedMessage(messagingEvent);
+//         } else if (messagingEvent.delivery) {
+//           receivedDeliveryConfirmation(messagingEvent);
+//         } else if (messagingEvent.postback) {
+//           receivedPostback(messagingEvent);
+//         } else {
+//           console.log("Webhook received unknown messagingEvent: ", messagingEvent);
+//         }
+//       });
+//     });
+
+//     // Assume all went well.
+//     //
+//     // You must send back a 200, within 20 seconds, to let us know you've 
+//     // successfully received the callback. Otherwise, the request will time out.
+//     res.sendStatus(200);
+//   }
+// });
+
+// function receivedMessage(event) {
+//   var senderID = event.sender.id;
+//   var recipientID = event.recipient.id;
+//   var timeOfMessage = event.timestamp;
+//   var message = event.message;
+
+//   console.log("Received message for user %d and page %d at %d with message:", 
+//     senderID, recipientID, timeOfMessage);
+//   console.log(JSON.stringify(message));
+
+//   var messageId = message.mid;
+
+//   // You may get a text or attachment but not both
+//   var messageText = message.text;
+//   var messageAttachments = message.attachments;
+
+//   if (messageText) {
+
+//     // If we receive a text message, check to see if it matches any special
+//     // keywords and send back the corresponding example. Otherwise, just echo
+//     // the text we received.
+//     switch (messageText) {
+//       case 'image':
+//         sendImageMessage(senderID);
+//         break;
+
+//       case 'button':
+//         sendButtonMessage(senderID);
+//         break;
+
+//       case 'generic':
+//         sendGenericMessage(senderID);
+//         break;
+
+//       case 'receipt':
+//         sendReceiptMessage(senderID);
+//         break;
+
+//       default:
+//         sendTextMessage(senderID, messageText);
+//     }
+//   } else if (messageAttachments) {
+//     sendTextMessage(senderID, "Message with attachment received");
+//   }
+// }
+
+// function sendTextMessage(recipientId, messageText) {
+//   var messageData = {
+//     recipient: {
+//       id: recipientId
+//     },
+//     message: {
+//       text: messageText
+//     }
+//   };
+
+//   callSendAPI(messageData);
+// }
+
+// function callSendAPI(messageData) {
+//   request({
+//     uri: 'https://graph.facebook.com/v2.6/me/messages',
+//     qs: { access_token: PAGE_ACCESS_TOKEN },
+//     method: 'POST',
+//     json: messageData
+
+//   }, function (error, response, body) {
+//     if (!error && response.statusCode == 200) {
+//       var recipientId = body.recipient_id;
+//       var messageId = body.message_id;
+
+//       console.log("Successfully sent generic message with id %s to recipient %s", 
+//         messageId, recipientId);
+//     } else {
+//       console.error("Unable to send message.");
+//       console.error(response);
+//       console.error(error);
+//     }
+//   });  
+// }

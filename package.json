@@ -13,15 +13,21 @@
   ],
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node examples/messenger.js"
   },
   "repository": "https://github.com/wit-ai/node-wit",
   "author": "The Wit Team <help@wit.ai>",
   "dependencies": {
+    "express": "4.13.4",
     "isomorphic-fetch": "^2.2.1",
-    "node-uuid": "^1.4.7"
+    "node-uuid": "^1.4.7",
+    "statuses": "",
+    "body-parser": "",
+    "node-fetch": "",
+    "request": ""
   },
   "engines": {
-    "node": ">=4.0.0"
+    "node": ">=6.0.0"
   }
 }
