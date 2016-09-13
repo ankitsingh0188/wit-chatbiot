@@ -29,20 +29,27 @@ try {
   Wit = require('node-wit').Wit;
   log = require('node-wit').log;
 }
-
+const {
+  DEFAULT_WIT_TOKEN,
+  DEFAULT_FB_PAGE_TOKEN,
+  DEFAULT_FB_APP_SECRET
+} = require('../lib/config');
 // Webserver parameter
 const PORT = process.env.PORT || 8445;
 
 // Wit.ai parameters
 // const WIT_TOKEN = process.env.WIT_TOKEN;
-const WIT_TOKEN = '2OLQSQ6YUXEYMTTIIOZWY6HCU5P2I2AJ';
+// const WIT_TOKEN = 'RWDHGOPJJ4DI4WZF7KHQE3T3ZIL7DB33';
+const WIT_TOKEN = DEFAULT_WIT_TOKEN;
 
 // Messenger API parameters
 // const FB_PAGE_TOKEN = process.env.FB_PAGE_TOKEN;
-const FB_PAGE_TOKEN = 'EAAWbRYxNjOEBAMxceCzleJyzksZAhTqgbTTnfj9nW3offPDYBJIV9PqQEu53trOVrGYgTDby7xSHX1aOeA4ukrfT1Tf99sYY9q49SDzSgaBZBfmZAR5gEFRItGGaZBBF0exjEqmyy6tvSXGgh2g0PDU3MAJAtHQApjmMk3RIEQZDZD';
+const FB_PAGE_TOKEN = DEFAULT_FB_PAGE_TOKEN;
+// const FB_PAGE_TOKEN = 'EAAWbRYxNjOEBACU0vco42PqejFIVLQZB88Fqbm007LZAOnHQIdWmZBW1h6v2ZAo928cNkDCjhypH6mALB5FwZAHu8G7t8ZBVgZAje8t52RHO8FFdjBmBhHZCxPx0qUPJz86ee5h3HM37Dcu931QocTSxxj1mpPT46sqU9fZB1tZCExHgZDZD';
 if (!FB_PAGE_TOKEN) { throw new Error('missing FB_PAGE_TOKEN') }
 // const FB_APP_SECRET = process.env.FB_APP_SECRET;
-const FB_APP_SECRET = 'c2bf2848adffe996cd6314e64b49ca1c';
+const FB_APP_SECRET = DEFAULT_FB_APP_SECRET;
+// const FB_APP_SECRET = 'c2bf2848adffe996cd6314e64b49ca1c';
 if (!FB_APP_SECRET) { throw new Error('missing FB_APP_SECRET') }
 
 let FB_VERIFY_TOKEN = null;
@@ -59,6 +66,8 @@ crypto.randomBytes(8, (err, buff) => {
 // See the Send API reference
 // https://developers.facebook.com/docs/messenger-platform/send-api-reference
 
+
+// OLD Facebook Code
 const fbMessage = (id, text) => {
   const body = JSON.stringify({
     recipient: { id },
@@ -78,6 +87,39 @@ const fbMessage = (id, text) => {
     return json;
   });
 };
+
+
+// ------------- New Facebook Code ---------------
+
+// const fbMessage = (id, msg, attachment) => {
+//   var facebook_message = {
+//       recipient: {},
+//       message: {}
+//   };
+//   if (attachment) {
+//     facebook_message.message.attachment = msg;
+//   } else {
+//     facebook_message.message.text = msg;
+//   }
+//   facebook_message.recipient.id = id;
+//   // body = {
+//   //   recipient: { id },
+//   //   message: message,
+//   // };
+//   facebook_message.access_token = FB_PAGE_TOKEN;
+//   request({
+//       method: "POST",
+//       json: true,
+//       headers: {
+//           "content-type": "application/json",
+//       },
+//       body: facebook_message,
+//       uri: 'https://graph.facebook.com/v2.6/me/messages'
+//   }, function(err, res, body) {
+//   });
+// };
+
+// ------------- Facebook code ends ------------
 
 // ----------------------------------------------------------------------------
 // Wit.ai bot specific code
@@ -116,7 +158,6 @@ const firstEntityValue = (entities, entity) => {
   return typeof val === 'object' ? val.value : val;
 };
 
-
 // Our bot actions
 const actions = {
   send({sessionId}, {text}) {
@@ -127,7 +168,7 @@ const actions = {
       // Yay, we found our recipient!
       // Let's forward our bot response to her.
       // We return a promise to let our bot know when we're done sending
-      return fbMessage(recipientId, text)
+      return fbMessage(recipientId, text, true)
       .then(() => null)
       .catch((err) => {
         console.error(
@@ -143,101 +184,86 @@ const actions = {
       return Promise.resolve()
     }
   },
+
   getForecast({context, entities}) {
-    return new Promise(function(resolve, reject) {
-      var location = firstEntityValue(entities, 'location');
-      if (location) {
-        context.forecast = 'sunny in '  + location; // we should call a weather API here
-        delete context.missingLocation;
-      } else {
-        context.missingLocation = true;
-        delete context.forecast;
-      }
-      return resolve(context);
+    delete context.forecast
+    return new Promise(function(resolve, reject) {      
+    // Retrive the location entity and store it in the context field
+    var loc = firstEntityValue(entities, 'location')
+    if (loc) {
+      getWeather(loc)
+       .then(function (forecast) {
+         context.loc = forecast || 'sunny';
+         return resolve(context);
+       })
+       .catch(function (err) {
+         console.log(err)
+    })       
+    return resolve(context);
+    }
     });
   },
-  merge({context, entities}) {
-    return new Promise(function(resolve, reject) {
-      var category = firstEntityValue(entities, 'category');
-      if(category) {      
-        context.cat = category;
-      }
-       return resolve(context);
-    });
-  },
-  welcomemsg({context, entities}) {
-    return new Promise(function(resolve, reject) {
-      var greetings = firstEntityValue(entities, 'greetings');
-      if(greetings) {      
-        context.welcome = greetings;
-      }
-       return resolve(context);
-    });
-  },
-  howzyou({context, entities}) {
+
+   howzyou({context, entities}) {
     return new Promise(function(resolve, reject) {
       var howzyou = firstEntityValue(entities, 'howzyou');
-      if(howzyou) {      
+      if(howzyou) {
         context.howz = howzyou;
       }
        return resolve(context);
     });
   },
 
-  readingBooks({context, entities}) {
-    return new Promise(function(resolve, reject) {
-      var reading = firstEntityValue(entities, 'reading');
-      if(reading) {      
-        context.readbook = reading;
-      }
-       return resolve(context);
-    });
-  },
 
-  ['fetch-pics'](context) {
-    return new Promise(function(resolve, reject) {
-      var wantedPics = allPics[context.cat || 'default'];
-      context.pics = wantedPics[Math.floor(Math.random() * wantedPics.length)];
-      return resolve(context);
-    });
-  },
+  // readingBooks({context, entities}) {
+  //   return new Promise(function(resolve, reject) {
+  //     var reading = firstEntityValue(entities, 'reading');
+  //     if(reading) {      
+  //       // context.readbook = reading;
+  //       const jokes = allJokes[context.readbook || 'default'];
+  //       context.joke = jokes[Math.floor(Math.random() * jokes.length)];
+  //     }
+  //      return resolve(context);
+  //   });
+  // },
+
+  // ['fetch-pics'](context) {
+  //   return new Promise(function(resolve, reject) {
+  //     var wantedPics = allPics[context.cat || 'default'];
+  //     context.pics = wantedPics[Math.floor(Math.random() * wantedPics.length)];
+  //     return resolve(context);
+  //   });
+  // },
 
   ['what-to-read'](context) {
     return new Promise(function(resolve, reject) {
       return resolve(context);
     });
   },
+
+  // ['fetch-weather'](context) {
+  //   return new Promise(function(resolve, reject) {
+  //   if(context.loc) {
+  //      return resolve(context);
+  //     }     
+  //   });
+  // }
 };
 
 
-var allPics = {
-  corgis: [
-    '<img src="http://i.imgur.com/uYyICl0.jpeg">',
-    'http://i.imgur.com/useIJl6.jpeg',
-    'http://i.imgur.com/LD242xr.jpeg',
-    'http://i.imgur.com/Q7vn2vS.jpeg',
-    'http://i.imgur.com/ZTmF9jm.jpeg',
-    'http://i.imgur.com/jJlWH6x.jpeg',
-    'http://i.imgur.com/ZYUakqg.jpeg',
-    'http://i.imgur.com/RxoU9o9.jpeg',
-  ],
-  racoon: [
-    'http://i.imgur.com/zCC3npm.jpeg',
-    'http://i.imgur.com/OvxavBY.jpeg',
-    'http://i.imgur.com/Z6oAGRu.jpeg',
-    'http://i.imgur.com/uAlg8Hl.jpeg',
-    'http://i.imgur.com/q0O0xYm.jpeg',
-    'http://i.imgur.com/BrhxR5a.jpeg',
-    'http://i.imgur.com/05hlAWU.jpeg',
-    'http://i.imgur.com/HAeMnSq.jpeg',
-  ],
-  default: [
-    'http://blog.uprinting.com/wp-content/uploads/2011/09/Cute-Baby-Pictures-29.jpg',
-  ],
-};
-
-
-
+  var getWeather = function (location) {
+  return new Promise(function (resolve, reject) {
+    var url = 'https://query.yahooapis.com/v1/public/yql?q=select%20*%20from%20weather.forecast%20where%20woeid%20in%20(select%20woeid%20from%20geo.places(1)%20where%20text%3D%22'+ location +'%22)&format=json&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys'
+    request(url, function (error, response, body) {
+        if (!error && response.statusCode == 200) {
+          var jsonData = JSON.parse(body)
+          var forecast = jsonData.query.results.channel.item.forecast[0].text
+          console.log('WEATHER API SAYS....', jsonData.query.results.channel.item.forecast[0].text)
+          return forecast
+        }
+      })
+  })
+}
 
 // Setting up our bot
 const wit = new Wit({
@@ -291,6 +317,7 @@ app.post('/webhook', (req, res) => {
           if (attachments) {
             // We received an attachment
             // Let's reply with an automatic message
+            // fbMessage(sender, 'Sorry I can only process text messages for now.')
             fbMessage(sender, 'Sorry I can only process text messages for now.')
             .catch(console.error);
           } else if (text) {
