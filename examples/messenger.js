@@ -56,7 +56,7 @@ let FB_VERIFY_TOKEN = null;
 crypto.randomBytes(8, (err, buff) => {
   if (err) throw err;
   // FB_VERIFY_TOKEN = buff.toString('hex');
-  FB_VERIFY_TOKEN = 'b1683709bb35b5zx';
+  FB_VERIFY_TOKEN = 'b1683709bb35b5zxss';
   console.log(`/webhook will accept the Verify Token "${FB_VERIFY_TOKEN}"`);
 });
 
@@ -66,18 +66,16 @@ crypto.randomBytes(8, (err, buff) => {
 // See the Send API reference
 // https://developers.facebook.com/docs/messenger-platform/send-api-reference
 
-
-// OLD Facebook Code
 const fbMessage = (id, text) => {
   const body = JSON.stringify({
     recipient: { id },
     message: { text },
   });
-  const qs = 'access_token=' + encodeURIComponent(FB_PAGE_TOKEN);
+  const qs = 'access_token=' + FB_PAGE_TOKEN;
   return fetch('https://graph.facebook.com/me/messages?' + qs, {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body,
+    body:body,
   })
   .then(rsp => rsp.json())
   .then(json => {
@@ -87,39 +85,6 @@ const fbMessage = (id, text) => {
     return json;
   });
 };
-
-
-// ------------- New Facebook Code ---------------
-
-// const fbMessage = (id, msg, attachment) => {
-//   var facebook_message = {
-//       recipient: {},
-//       message: {}
-//   };
-//   if (attachment) {
-//     facebook_message.message.attachment = msg;
-//   } else {
-//     facebook_message.message.text = msg;
-//   }
-//   facebook_message.recipient.id = id;
-//   // body = {
-//   //   recipient: { id },
-//   //   message: message,
-//   // };
-//   facebook_message.access_token = FB_PAGE_TOKEN;
-//   request({
-//       method: "POST",
-//       json: true,
-//       headers: {
-//           "content-type": "application/json",
-//       },
-//       body: facebook_message,
-//       uri: 'https://graph.facebook.com/v2.6/me/messages'
-//   }, function(err, res, body) {
-//   });
-// };
-
-// ------------- Facebook code ends ------------
 
 // ----------------------------------------------------------------------------
 // Wit.ai bot specific code
@@ -168,7 +133,7 @@ const actions = {
       // Yay, we found our recipient!
       // Let's forward our bot response to her.
       // We return a promise to let our bot know when we're done sending
-      return fbMessage(recipientId, text, true)
+      return fbMessage(recipientId, text)
       .then(() => null)
       .catch((err) => {
         console.error(
@@ -184,86 +149,18 @@ const actions = {
       return Promise.resolve()
     }
   },
-
-  getForecast({context, entities}) {
-    delete context.forecast
-    return new Promise(function(resolve, reject) {      
-    // Retrive the location entity and store it in the context field
-    var loc = firstEntityValue(entities, 'location')
-    if (loc) {
-      getWeather(loc)
-       .then(function (forecast) {
-         context.loc = forecast || 'sunny';
-         return resolve(context);
-       })
-       .catch(function (err) {
-         console.log(err)
-    })       
-    return resolve(context);
-    }
-    });
-  },
-
-   howzyou({context, entities}) {
+  
+  howzyou({context, entities}) {
     return new Promise(function(resolve, reject) {
-      var howzyou = firstEntityValue(entities, 'howzyou');
-      if(howzyou) {
-        context.howz = howzyou;
-      }
-       return resolve(context);
-    });
-  },
-
-
-  // readingBooks({context, entities}) {
-  //   return new Promise(function(resolve, reject) {
-  //     var reading = firstEntityValue(entities, 'reading');
-  //     if(reading) {      
-  //       // context.readbook = reading;
-  //       const jokes = allJokes[context.readbook || 'default'];
-  //       context.joke = jokes[Math.floor(Math.random() * jokes.length)];
-  //     }
-  //      return resolve(context);
-  //   });
-  // },
-
-  // ['fetch-pics'](context) {
-  //   return new Promise(function(resolve, reject) {
-  //     var wantedPics = allPics[context.cat || 'default'];
-  //     context.pics = wantedPics[Math.floor(Math.random() * wantedPics.length)];
-  //     return resolve(context);
-  //   });
-  // },
-
-  ['what-to-read'](context) {
-    return new Promise(function(resolve, reject) {
+      // Retrive the location entity and store it in the context field
+      var howzyou = firstEntityValue(entities, 'howzyou')
+        if (howzyou) {          
+          context.howz = howzyou
+        }
       return resolve(context);
     });
-  },
-
-  // ['fetch-weather'](context) {
-  //   return new Promise(function(resolve, reject) {
-  //   if(context.loc) {
-  //      return resolve(context);
-  //     }     
-  //   });
-  // }
+  },  
 };
-
-
-  var getWeather = function (location) {
-  return new Promise(function (resolve, reject) {
-    var url = 'https://query.yahooapis.com/v1/public/yql?q=select%20*%20from%20weather.forecast%20where%20woeid%20in%20(select%20woeid%20from%20geo.places(1)%20where%20text%3D%22'+ location +'%22)&format=json&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys'
-    request(url, function (error, response, body) {
-        if (!error && response.statusCode == 200) {
-          var jsonData = JSON.parse(body)
-          var forecast = jsonData.query.results.channel.item.forecast[0].text
-          console.log('WEATHER API SAYS....', jsonData.query.results.channel.item.forecast[0].text)
-          return forecast
-        }
-      })
-  })
-}
 
 // Setting up our bot
 const wit = new Wit({
@@ -321,6 +218,7 @@ app.post('/webhook', (req, res) => {
             fbMessage(sender, 'Sorry I can only process text messages for now.')
             .catch(console.error);
           } else if (text) {
+            // fbMessage(sender, text);
             // We received a text message
 
             // Let's forward the message to the Wit.ai Bot Engine
@@ -472,37 +370,37 @@ console.log('Listening on :' + PORT + '...');
 //   }
 // }
 
-// function sendTextMessage(recipientId, messageText) {
-//   var messageData = {
-//     recipient: {
-//       id: recipientId
-//     },
-//     message: {
-//       text: messageText
-//     }
-//   };
+function sendTextMessage(recipientId, messageText) {
+  var messageData = {
+    recipient: {
+      id: recipientId
+    },
+    message: {
+      attachment: messageText
+    }
+  };
 
-//   callSendAPI(messageData);
-// }
+  callSendAPI(messageData);
+}
 
-// function callSendAPI(messageData) {
-//   request({
-//     uri: 'https://graph.facebook.com/v2.6/me/messages',
-//     qs: { access_token: PAGE_ACCESS_TOKEN },
-//     method: 'POST',
-//     json: messageData
+function callSendAPI(messageData) {
+  request({
+    uri: 'https://graph.facebook.com/v2.6/me/messages',
+    qs: { access_token: PAGE_ACCESS_TOKEN },
+    method: 'POST',
+    json: messageData
 
-//   }, function (error, response, body) {
-//     if (!error && response.statusCode == 200) {
-//       var recipientId = body.recipient_id;
-//       var messageId = body.message_id;
+  }, function (error, response, body) {
+    if (!error && response.statusCode == 200) {
+      var recipientId = body.recipient_id;
+      var messageId = body.message_id;
 
-//       console.log("Successfully sent generic message with id %s to recipient %s", 
-//         messageId, recipientId);
-//     } else {
-//       console.error("Unable to send message.");
-//       console.error(response);
-//       console.error(error);
-//     }
-//   });  
-// }
+      console.log("Successfully sent generic message with id %s to recipient %s", 
+        messageId, recipientId);
+    } else {
+      console.error("Unable to send message.");
+      console.error(response);
+      console.error(error);
+    }
+  });  
+}
